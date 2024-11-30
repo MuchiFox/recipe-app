@@ -1,14 +1,20 @@
-class Ingredient {
-  String name;
-  double quantity;
-  String unit;
-
-  Ingredient({required this.name, required this.quantity, required this.unit});
-}
-
 class Recipe {
-  String name;
-  List<Ingredient> ingredients;
+  final int id;
+  final String name;
 
-  Recipe({required this.name, required this.ingredients});
+  Recipe({required this.id, required this.name});
+
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'name': name,
+    };
+  }
+
+  factory Recipe.fromMap(Map<String, dynamic> map) {
+    return Recipe(
+      id: map['id'],
+      name: map['name'],
+    );
+  }
 }

@@ -2,6 +2,11 @@ import 'package:flutter/material.dart';
 import 'add_recipe_screen.dart';
 import 'recipe.dart';
 import 'recipe_detail_screen.dart';
+import 'package:recipe_app/database_helper.dart';
+
+import 'recipe_list_screen.dart';
+
+
 
 /// 主入口函数
 void main() {
@@ -29,74 +34,76 @@ class RecipeListScreen extends StatefulWidget {
 }
 
 class _RecipeListScreenState extends State<RecipeListScreen> {
-  /// 保存所有食谱的列表
-  List<Recipe> recipes = [];
-
-  /// 添加新的食谱到列表
-  void _addRecipe(String name, List<Ingredient> ingredients) {
-    setState(() {
-      recipes.add(Recipe(name: name, ingredients: ingredients));
-    });
-  }
+  List<Map<String, dynamic>> recipes = [];
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('My Recipes'),
-      ),
-      /// 如果没有食谱则显示提示信息，否则显示食谱列表
-      body: recipes.isEmpty
-          ? Center(child: Text('No recipes added yet!'))
-          : ListView.builder(
-              itemCount: recipes.length,
-              itemBuilder: (context, index) {
-                return ListTile(
-                  title: Text(recipes[index].name),
-                  /// 将食谱的每个材料格式化成字符串，并作为列表项的副标题
-                  subtitle: Text(recipes[index].ingredients.map((ingredient) {
-                    return '${ingredient.name} - ${ingredient.quantity} ${ingredient.unit}';
-                  }).join(', ')),
-                  /// 点击列表项时导航到食谱详情页面
+  void initState() {
+    super.initState();
+    _loadRecipes();
+  }
+
+  Future<void> _loadRecipes() async {
+    final dbHelper = DatabaseHelper.instance;
+    final data = await dbHelper.getAllRecipes();
+    setState(() {
+      recipes = data;
+    });
+  }
+
+
+@override
+Widget build(BuildContext context) {
+  return Scaffold(
+    appBar: AppBar(
+      title: Text('My Recipes'),
+    ),
+    // 如果没有食谱则提示没有信息，否则显示食谱列表
+    body: recipes.isEmpty
+        ? Center(child: Text('No recipes added yet!'))
+        : ListView.builder(
+            itemCount: recipes.length,
+            itemBuilder: (context, index) {
+              final recipe = recipes[index];
+              return ListTile(
+                title: Text(recipe['name']),
+                subtitle: Text(
+                  // 将食谱的每个材料格式化为字符串，并作为列表项的副标题
+                  recipe['ingredients']
+                      .split(';')
+                      .map((ingredient) => ingredient)
+                      .join('\n'),
+                ),
 onTap: () async {
-  final result = await Navigator.push(
+  // 点击列表项时导航到食谱详情页面
+  await Navigator.push(
     context,
     MaterialPageRoute(
-      builder: (context) => RecipeDetailScreen(recipe: recipes[index]),
+      builder: (context) => RecipeDetailScreen(
+        recipeId: recipe['id'],
+      ),
     ),
   );
-
-  if (result is Recipe) {
-    // 如果返回的是 Recipe 对象，则更新食谱列表
-    setState(() {
-      recipes[index] = result;
-    });
-  } else if (result == 'delete') {
-    // 如果返回的是 'delete' 字符串，则删除食谱
-    setState(() {
-      recipes.removeAt(index);
-    });
-  }
 },
-                );
-              },
-            ),
-      /// 点击浮动按钮添加新食谱
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          final result = await Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => AddRecipeScreen()),
-          );
 
-          /// 如果从添加页面返回了新的食谱信息，则添加到列表中
-          if (result is Recipe) {
-            _addRecipe(result.name, result.ingredients);
-          }
-        },
-        child: Icon(Icons.add),
-        tooltip: 'Add Recipe',
-      ),
-    );
-  }
+              );
+            },
+          ),
+    floatingActionButton: FloatingActionButton(
+      onPressed: () async {
+        // 点击添加按钮导航到添加食谱页面
+        final newRecipe = await Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => AddRecipeScreen()),
+        );
+
+        // 如果有新的食谱则刷新数据
+        if (newRecipe != null) {
+          _loadRecipes();
+        }
+      },
+      child: Icon(Icons.add),
+    ),
+  );
+}
+
 }
